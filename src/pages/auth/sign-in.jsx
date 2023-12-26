@@ -20,6 +20,7 @@ export function SignIn() {
       const user = userCredential.user;
       localStorage.setItem("email", email)
       localStorage.setItem("password", password)
+      localStorage.setItem("user", JSON.stringify(user))
       alert("dang nhap thanh cong", user.email)
       navigate("/dashboard/home")
     })

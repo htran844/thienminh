@@ -85,8 +85,14 @@ export function Profile() {
           if (user) {
             setDoc(doc(db, "users", email), data)
               .then(() => {
-                signInWithEmailAndPassword(auth, emailLocal, passLocal);
-                alert("dang ky thanh cong", user.email);
+                signInWithEmailAndPassword(auth, emailLocal, passLocal).then((userCredential) => {
+                  const user = userCredential.user;
+                  localStorage.setItem("email", email)
+                  localStorage.setItem("password", password)
+                  localStorage.setItem("user", JSON.stringify(user))
+                  alert("dang ky thanh cong", user.email);
+                })
+                
               })
               .catch((err) => {
                 alert("dang ky that bai", err);
@@ -146,7 +152,9 @@ export function Profile() {
                   variant="small"
                   className="font-normal text-blue-gray-600"
                 >
-                  {userState?.role == 1 ? "CEO" : `Nhân viên của ${userState.parentId}`}
+                  {userState?.role == 1
+                    ? "CEO"
+                    : `Nhân viên của ${userState.parentId}`}
                 </Typography>
               </div>
             </div>

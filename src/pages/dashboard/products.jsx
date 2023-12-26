@@ -12,20 +12,107 @@ import {
   DialogHeader,
   DialogBody,
   DialogFooter,
+  Input,
+  Textarea,
 } from "@material-tailwind/react";
 import { EllipsisVerticalIcon } from "@heroicons/react/24/outline";
 import { authorsTableData, projectsTableData } from "@/data";
-import { useState } from "react";
-import { QrReader } from "react-qr-reader";
+import { useEffect, useRef, useState } from "react";
+import {QrReader} from "react-qr-reader";
+import {
+  Timestamp,
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "@/firebase/config";
+import { getAuth } from "firebase/auth";
+import { getProductById } from "@/api/mockapi";
 
 export function Products() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState("No result");
   const [qr, setqr] = useState(true);
+  const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState(0);
+  const [price, setPrice] = useState(0);
+  const [mota, setMota] = useState("");
+  const inputRef = useRef(null);
   const handleOpen = () => setOpen(!open);
   const handleQR = () => {
     setqr((pre) => !pre);
   };
+  const handleAdd = async () => {
+    const auth = getAuth();
+    const userAuth = auth.currentUser;
+    console.log("userauth", userAuth);
+    // kiem tra sp da co chua
+    const docRef = doc(db, "products", data);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      console.log("Document data:", docSnap.data());
+      // neu co roi thi update
+      const productRef = doc(db, "products", data);
+      const newQuantity = Number(docSnap.data().quantity) + Number(quantity);
+      await updateDoc(productRef, {
+        quantity: Number(newQuantity),
+        price: Number(price)
+      });
+    } else {
+      // docSnap.data() will be undefined in this case
+      console.log("No such document!");
+      // neu chua co thi them moi
+      const docData = {
+        name,
+        quantity: Number(quantity),
+        price: Number(price),
+        dateCreated: Timestamp.now(),
+        mota,
+        id: data,
+        user_email: userAuth.email,
+        status: true,
+      };
+      await setDoc(doc(db, "products", data), docData);
+    }
+    // tao phieu nhap
+
+    const docPhieuNhap = {
+      product_id: data,
+      quantity: Number(quantity),
+      status: true,
+      dateCreated: Timestamp.now(),
+      day: new Date().getDate(),
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
+      staff_email: userAuth.email,
+    };
+    const docRefdocPhieuNhap = await addDoc(
+      collection(db, "phieuNhaps"),
+      docPhieuNhap,
+    );
+    console.log("Document written with ID: ", docRefdocPhieuNhap.id);
+    setName("");
+    setPrice(0);
+    setMota("");
+    setQuantity(0);
+    setData("No result");
+    alert("Thành công!");
+  };
+  useEffect(() => {
+    if (data != "No result") {
+      const item = getProductById(data);
+      console.log("item", item);
+      if (item != null) {
+        console.log("setlaistate");
+        setName(item.name);
+        setPrice(item.price);
+        setMota(item.moTa);
+      }
+    }
+  }, [data]);
   return (
     <div className="mt-12 mb-8 flex flex-col gap-12">
       <Card>
@@ -43,26 +130,72 @@ export function Products() {
               <Dialog open={open} handler={handleOpen}>
                 <DialogHeader>Thêm sản phẩm mới</DialogHeader>
                 <DialogBody>
-                  <Button onClick={handleQR} variant="gradient">
-                    Quét QR
-                  </Button>
-                  {qr && (
-                    <div>
-                      <QrReader
-                        onResult={(result, error) => {
-                          if (!!result) {
-                            setData(result?.text);
-                          }
+                  <div className="flex flex-row justify-between items-center">
+                    <QrReader
+                      className="h-40 w-40"
+                      // delay={300}
+                      // onError={(err) => console.error(err)}
+                      // onScan={(data) => {
+                      //   if (data) {
+                      //     setData(data)
+                      //   }
+                      // }}
+                      onResult={(result, error) => {
+                        if (!!result) {
+                          setData(result?.text);
+                        }
 
-                          if (!!error) {
-                            console.info(error);
-                          }
-                        }}
-                        style={{ width: "100%" }}
-                      />
-                      <p>{data}</p>
-                    </div>
-                  )}
+                        if (!!error) {
+                          console.log("error", error);
+                        }
+                      }}
+                    />
+                    <p>{data}</p>
+                  </div>
+                  <div className="h-5"></div>
+                  <Input
+                    size="lg"
+                    variant="Tên sản phẩm"
+                    label="Tên sản phẩm"
+                    onChange={(e) => {
+                      setName(e.target.value);
+                    }}
+                    value={name}
+                  />
+                  <div className="h-5"></div>
+                  <Input
+                    size="lg"
+                    type="number"
+                    min={1}
+                    variant="Giá sản phẩm (đơn vị nghìn vnđ)"
+                    label="Giá sản phẩm (đơn vị nghìn vnđ)"
+                    onChange={(e) => {
+                      setPrice(e.target.value);
+                    }}
+                    value={price}
+                  />
+                  <div className="h-5"></div>
+                  <Input
+                    size="lg"
+                    type="number"
+                    min={1}
+                    max={100}
+                    variant="Số lượng nhập"
+                    label="Số lượng nhập"
+                    onChange={(e) => {
+                      setQuantity(e.target.value);
+                    }}
+                    value={quantity}
+                    ref={inputRef}
+                  />
+                  <div className="h-5"></div>
+                  <Textarea
+                    placeholder="Mô tả"
+                    onChange={(e) => {
+                      setMota(e.target.value);
+                    }}
+                    value={mota}
+                  />
                 </DialogBody>
                 <DialogFooter>
                   <Button
@@ -73,8 +206,8 @@ export function Products() {
                   >
                     <span>Cancel</span>
                   </Button>
-                  <Button variant="gradient" color="green" onClick={handleOpen}>
-                    <span>Confirm</span>
+                  <Button variant="gradient" color="green" onClick={handleAdd}>
+                    <span>Thêm</span>
                   </Button>
                 </DialogFooter>
               </Dialog>
