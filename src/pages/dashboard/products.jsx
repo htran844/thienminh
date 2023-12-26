@@ -18,7 +18,7 @@ import {
 import { EllipsisVerticalIcon } from "@heroicons/react/24/outline";
 import { authorsTableData, projectsTableData } from "@/data";
 import { useEffect, useRef, useState } from "react";
-import {QrReader} from "react-qr-reader";
+import { QrReader } from "react-qr-reader";
 import {
   Timestamp,
   addDoc,
@@ -40,6 +40,7 @@ export function Products() {
   const [quantity, setQuantity] = useState(0);
   const [price, setPrice] = useState(0);
   const [mota, setMota] = useState("");
+  const [masp, setMasp] = useState("");
   const inputRef = useRef(null);
   const handleOpen = () => setOpen(!open);
   const handleQR = () => {
@@ -133,13 +134,6 @@ export function Products() {
                   <div className="flex flex-row justify-between items-center">
                     <QrReader
                       className="h-40 w-40"
-                      // delay={300}
-                      // onError={(err) => console.error(err)}
-                      // onScan={(data) => {
-                      //   if (data) {
-                      //     setData(data)
-                      //   }
-                      // }}
                       onResult={(result, error) => {
                         if (!!result) {
                           setData(result?.text);
@@ -150,7 +144,16 @@ export function Products() {
                         }
                       }}
                     />
-                    <p>{data}</p>
+                    <div className="w-1/2">
+                      <Input
+                        size="lg"
+                        variant="Mã sản phẩm"
+                        label="Mã sản phẩm"
+                        value={data}
+                        readOnly
+                      />
+                    </div>
+
                   </div>
                   <div className="h-5"></div>
                   <Input
@@ -243,11 +246,10 @@ export function Products() {
             <tbody>
               {authorsTableData.map(
                 ({ img, name, email, job, online, date }, key) => {
-                  const className = `py-3 px-5 ${
-                    key === authorsTableData.length - 1
-                      ? ""
-                      : "border-b border-blue-gray-50"
-                  }`;
+                  const className = `py-3 px-5 ${key === authorsTableData.length - 1
+                    ? ""
+                    : "border-b border-blue-gray-50"
+                    }`;
 
                   return (
                     <tr key={name}>
