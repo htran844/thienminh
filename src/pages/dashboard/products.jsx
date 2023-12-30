@@ -25,8 +25,11 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
+  query,
   setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { getAuth } from "firebase/auth";
@@ -34,6 +37,7 @@ import { getProductById } from "@/api/mockapi";
 
 export function Products() {
   const [open, setOpen] = useState(false);
+  const [openXuat, setOpenXuat] = useState(false);
   const [data, setData] = useState("No result");
   const [qr, setqr] = useState(true);
   const [name, setName] = useState("");
@@ -41,8 +45,12 @@ export function Products() {
   const [price, setPrice] = useState(0);
   const [mota, setMota] = useState("");
   const [masp, setMasp] = useState("");
+  const [products, setProducts] = useState([]);
+  const [listXuat, setListXuat] = useState([]);
+  const listXuatRef = useRef([])
   const inputRef = useRef(null);
   const handleOpen = () => setOpen(!open);
+  const handleOpenXuat = () => setOpenXuat(!openXuat);
   const handleQR = () => {
     setqr((pre) => !pre);
   };
@@ -60,7 +68,7 @@ export function Products() {
       const newQuantity = Number(docSnap.data().quantity) + Number(quantity);
       await updateDoc(productRef, {
         quantity: Number(newQuantity),
-        price: Number(price)
+        price: Number(price),
       });
     } else {
       // docSnap.data() will be undefined in this case
@@ -102,6 +110,31 @@ export function Products() {
     setData("No result");
     alert("Thành công!");
   };
+  const handleXuat = async () => {};
+  const loadProducts = async () => {
+    const auth = getAuth();
+    const userAuth = auth.currentUser;
+    let products = [];
+    const q = query(
+      collection(db, "products"),
+      where("user_email", "==", userAuth.email),
+    );
+    const querySnapshot = await getDocs(q);
+    querySnapshot.forEach((doc) => {
+      // doc.data() is never undefined for query doc snapshots
+      console.log(doc.id, " => ", doc.data());
+      products.push(doc.data());
+    });
+    setProducts(products);
+  };
+  const handleListXuat = async (qr) => {
+    if (!listXuatRef.current.includes(qr)) {
+      console.log("listXuat", listXuatRef.current)
+      // Nếu không tồn tại, thêm giá trị mới vào mảng
+      // setListXuat(pre => [...pre, qr]);
+      listXuatRef.current = [...listXuatRef.current, qr]
+    }
+  };
   useEffect(() => {
     if (data != "No result") {
       const item = getProductById(data);
@@ -114,6 +147,9 @@ export function Products() {
       }
     }
   }, [data]);
+  useEffect(() => {
+    loadProducts();
+  }, []);
   return (
     <div className="mt-12 mb-8 flex flex-col gap-12">
       <Card>
@@ -127,6 +163,9 @@ export function Products() {
             <div>
               <Button onClick={handleOpen} variant="gradient">
                 Thêm sản phẩm mới
+              </Button>
+              <Button onClick={handleOpenXuat} variant="gradient">
+                Xuất hóa đơn bán hàng
               </Button>
               <Dialog open={open} handler={handleOpen}>
                 <DialogHeader>Thêm sản phẩm mới</DialogHeader>
@@ -153,7 +192,6 @@ export function Products() {
                         readOnly
                       />
                     </div>
-
                   </div>
                   <div className="h-5"></div>
                   <Input
@@ -215,6 +253,69 @@ export function Products() {
                 </DialogFooter>
               </Dialog>
             </div>
+            <Dialog open={openXuat} size="xl" handler={handleOpenXuat}>
+              <DialogHeader>Xuất hóa đơn bán hàng</DialogHeader>
+              <DialogBody>
+                <div className="flex flex-row justify-between items-center">
+                  <QrReader
+                    className="h-40 w-40"
+                    onResult={(result, error) => {
+                      if (!!result) {
+                        console.log("result", result);
+                        handleListXuat(result.text);
+                      }
+
+                      if (!!error) {
+                        console.log("error", error);
+                      }
+                    }}
+                    scanDelay={1000}
+                  />
+                  <div className="w-1/2">
+                    <Input
+                      size="lg"
+                      variant="Mã sản phẩm"
+                      label="Mã sản phẩm"
+                      value={data}
+                      readOnly
+                    />
+                  </div>
+                </div>
+                <table class="table-auto">
+                  <thead>
+                    <tr>
+                      <th>Mã sản phẩm</th>
+                      <th>Tên</th>
+                      <th>Giá</th>
+                      <th>Số lượng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {listXuatRef.current && listXuatRef.current.length > 0 && listXuatRef.current.map((item, index) => (
+                      <tr key={index}>
+                        <td>{item}</td>
+                        <td>Malcolm Lockyer</td>
+                        <td>1961</td>
+                        <td>1961</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </DialogBody>
+              <DialogFooter>
+                <Button
+                  variant="text"
+                  color="red"
+                  onClick={handleOpenXuat}
+                  className="mr-1"
+                >
+                  <span>Cancel</span>
+                </Button>
+                <Button variant="gradient" color="green" onClick={handleXuat}>
+                  <span>Xuất</span>
+                </Button>
+              </DialogFooter>
+            </Dialog>
           </Typography>
         </CardHeader>
         <CardBody className="overflow-x-scroll px-0 pt-0 pb-2">
@@ -225,6 +326,7 @@ export function Products() {
                   "STT",
                   "Tên sản phẩm",
                   "Giá hiện tại",
+                  "Trạng thái",
                   "Mã sản phẩm",
                   "Tồn kho",
                   "",
@@ -244,71 +346,82 @@ export function Products() {
               </tr>
             </thead>
             <tbody>
-              {authorsTableData.map(
-                ({ img, name, email, job, online, date }, key) => {
-                  const className = `py-3 px-5 ${key === authorsTableData.length - 1
-                    ? ""
-                    : "border-b border-blue-gray-50"
+              {products.length > 0 &&
+                products.map(
+                  (
+                    { id, dateCreated, name, price, quantity, status, mota },
+                    key,
+                  ) => {
+                    const className = `py-3 px-5 ${
+                      key === authorsTableData.length - 1
+                        ? ""
+                        : "border-b border-blue-gray-50"
                     }`;
 
-                  return (
-                    <tr key={name}>
-                      <td className={className}>
-                        <div className="flex items-center gap-4">
-                          <Avatar
-                            src={img}
-                            alt={name}
-                            size="sm"
-                            variant="rounded"
-                          />
-                          <div>
-                            <Typography
-                              variant="small"
-                              color="blue-gray"
-                              className="font-semibold"
-                            >
-                              {name}
-                            </Typography>
-                            <Typography className="text-xs font-normal text-blue-gray-500">
-                              {email}
-                            </Typography>
+                    return (
+                      <tr key={name}>
+                        <td className={className}>
+                          <Typography className="text-xs font-semibold text-blue-gray-600">
+                            {key + 1}
+                          </Typography>
+                        </td>
+                        <td className={className}>
+                          <div className="flex items-center gap-4">
+                            <div className="w-[90%]">
+                              <Typography
+                                variant="small"
+                                color="blue-gray"
+                                className="font-semibold"
+                              >
+                                {name}
+                              </Typography>
+                              <Typography className="text-xs font-normal text-blue-gray-500 overflow-hidden">
+                                {mota}
+                              </Typography>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className={className}>
+                        </td>
+                        <td className={className}>
+                          <Typography className="text-xs font-semibold text-blue-gray-600">
+                            {price}
+                          </Typography>
+                        </td>
+                        <td className={className}>
+                          <Chip
+                            variant="gradient"
+                            color={status ? "green" : "blue-gray"}
+                            value={status ? "đang bán" : "dừng bán"}
+                            className="py-0.5 px-2 text-[11px] font-medium w-fit"
+                          />
+                        </td>
+                        <td className={className}>
+                          <Typography className="text-xs font-semibold text-blue-gray-600">
+                            {id}
+                          </Typography>
+                        </td>
+                        {/* <td className={className}>
                         <Typography className="text-xs font-semibold text-blue-gray-600">
-                          {job[0]}
+                         {new Date(dateCreated.toDate()).toUTCString()}
                         </Typography>
-                        <Typography className="text-xs font-normal text-blue-gray-500">
-                          {job[1]}
-                        </Typography>
-                      </td>
-                      <td className={className}>
-                        <Chip
-                          variant="gradient"
-                          color={online ? "green" : "blue-gray"}
-                          value={online ? "online" : "offline"}
-                          className="py-0.5 px-2 text-[11px] font-medium w-fit"
-                        />
-                      </td>
-                      <td className={className}>
-                        <Typography className="text-xs font-semibold text-blue-gray-600">
-                          {date}
-                        </Typography>
-                      </td>
-                      <td className={className}>
-                        <Typography
-                          as="a"
-                          href="#"
-                          className="text-xs font-semibold text-blue-gray-600"
-                        >
-                          Edit
-                        </Typography>
-                      </td>
-                    </tr>
-                  );
-                },
-              )}
+                      </td> */}
+                        <td className={className}>
+                          <Typography className="text-xs font-semibold text-blue-gray-600">
+                            {quantity}
+                          </Typography>
+                        </td>
+                        <td className={className}>
+                          <Typography
+                            as="a"
+                            href="#"
+                            className="text-xs font-semibold text-blue-gray-600"
+                          >
+                            Edit
+                          </Typography>
+                        </td>
+                      </tr>
+                    );
+                  },
+                )}
             </tbody>
           </table>
         </CardBody>

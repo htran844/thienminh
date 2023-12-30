@@ -25,12 +25,12 @@ export const routes = [
         path: "/home",
         element: <Home />,
       },
-      {
-        icon: <UserCircleIcon {...icon} />,
-        name: "profile",
-        path: "/profile",
-        element: <Profile />,
-      },
+      // {
+      //   icon: <UserCircleIcon {...icon} />,
+      //   name: "profile",
+      //   path: "/profile",
+      //   element: <Profile />,
+      // },
       {
         icon: <RectangleGroupIcon {...icon} />,
         name: "products",
